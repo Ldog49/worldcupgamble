@@ -2,7 +2,9 @@ const { Pool } = require('pg');
 
 function sslConfig() {
   const url = process.env.DATABASE_URL || '';
-  if (!url || url.includes('localhost') || url.includes('127.0.0.1')) return false;
+  if (!url) return false;
+  // No SSL for local or Railway's private internal network
+  if (url.includes('localhost') || url.includes('127.0.0.1') || url.includes('.railway.internal')) return false;
   return { rejectUnauthorized: false };
 }
 

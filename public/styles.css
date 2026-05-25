@@ -655,7 +655,7 @@ ul { list-style: none; }
 .empty-state {
   text-align: center;
   padding: 48px 24px;
-  color: var(--text-muted);
+  color: var(--text-sub);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -663,7 +663,7 @@ ul { list-style: none; }
 }
 
 .empty-icon { font-size: 2.5rem; }
-.empty-state div { font-size: 0.9rem; }
+.empty-state div { font-size: 0.9rem; color: var(--text-sub); }
 
 .error-msg  { color: var(--red);   font-size: 0.82rem; text-align: center; }
 .success-msg { color: var(--green); font-size: 0.82rem; }

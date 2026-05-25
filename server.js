@@ -87,6 +87,24 @@ function calcProfit(result, odds, stake = 5) {
 app.use(express.json());
 app.use(express.static('public'));
 
+// ── Health / debug ─────────────────────────────────────────────────────────
+
+app.get('/api/health', async (_, res) => {
+  const status = { ok: false, db: false, dbError: null, env: {
+    DATABASE_URL: !!process.env.DATABASE_URL,
+    ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
+    CLOUDINARY: !!process.env.CLOUDINARY_CLOUD_NAME,
+  }};
+  try {
+    await db.pool.query('SELECT 1');
+    status.db  = true;
+    status.ok  = true;
+  } catch (e) {
+    status.dbError = e.message;
+  }
+  res.status(status.ok ? 200 : 503).json(status);
+});
+
 // ── Players ────────────────────────────────────────────────────────────────
 
 app.get('/api/players', async (_, res) => {
