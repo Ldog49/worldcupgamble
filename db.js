@@ -170,6 +170,25 @@ async function deleteBet(id) {
   return rowCount > 0;
 }
 
+async function getAllBets() {
+  const { rows } = await pool.query(
+    `SELECT b.*,
+            p.name        AS player_name,
+            gw.name       AS game_week_name,
+            gw.week_number AS week_number
+     FROM bets b
+     JOIN players   p  ON b.player_id    = p.id
+     JOIN game_weeks gw ON b.game_week_id = gw.id
+     ORDER BY gw.week_number ASC, b.created_at ASC`
+  );
+  return rows.map(r => ({
+    ...camelBet(r),
+    playerName:   r.player_name,
+    gameWeekName: r.game_week_name,
+    weekNumber:   r.week_number,
+  }));
+}
+
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 
 async function getLeaderboard(gameWeekId = null) {
@@ -250,9 +269,10 @@ function camelBet(b) {
 }
 
 module.exports = {
+  pool,
   initDB,
   getPlayers, getPlayerByName, addPlayer,
   getGameWeeks, getActiveGameWeek, getGameWeek, setActiveGameWeek,
   addBet, updateBet, getBet, getBetByPlayerAndWeek, getBetsForWeek, deleteBet,
-  getLeaderboard,
+  getAllBets, getLeaderboard,
 };

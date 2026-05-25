@@ -376,7 +376,16 @@ function populatePlayersList() {
 }
 
 /* ── Admin ───────────────────────────────────────────────────────────────── */
+
+// Persist admin session so password survives tab switches
+function loadAdminSession() {
+  const saved = sessionStorage.getItem('adminPwd');
+  if (saved) { adminPassword = saved; adminUnlocked = true; }
+}
+
 function setupAdmin() {
+  loadAdminSession();
+
   const unlockBtn = document.getElementById('adminUnlockBtn');
   const pwdInput  = document.getElementById('adminPassword');
 
@@ -387,42 +396,63 @@ function setupAdmin() {
   document.getElementById('adminWeekFilter').addEventListener('change', e => {
     if (e.target.value) loadAdminBets(parseInt(e.target.value));
   });
+  document.getElementById('adminSeedBtn').addEventListener('click', runSeed);
+  document.getElementById('refreshAllBetsBtn').addEventListener('click', loadAllBets);
+
+  document.getElementById('allBetsWeekFilter').addEventListener('change', loadAllBets);
+  document.getElementById('allBetsPlayerFilter').addEventListener('change', loadAllBets);
+
+  // Auto-unlock if session saved
+  if (adminUnlocked) {
+    document.getElementById('adminLock').classList.add('hidden');
+    document.getElementById('adminPanel').classList.remove('hidden');
+    populateAdminWeekSelects();
+    loadAllBets();
+  }
 }
 
 function tryUnlock() {
   const pwd = document.getElementById('adminPassword').value;
   adminPassword = pwd;
   adminUnlocked = true;
+  sessionStorage.setItem('adminPwd', pwd);
 
   document.getElementById('adminLock').classList.add('hidden');
   document.getElementById('adminPanel').classList.remove('hidden');
   populateAdminWeekSelects();
+  loadAllBets();
 }
 
 function populateAdminWeekSelects() {
   const sel1 = document.getElementById('adminWeekSelect');
   const sel2 = document.getElementById('adminWeekFilter');
+  const sel3 = document.getElementById('allBetsWeekFilter');
 
-  sel1.innerHTML = allWeeks.map(w =>
+  const opts = allWeeks.map(w =>
     `<option value="${w.id}" ${w.isActive ? 'selected' : ''}>${esc(w.name)}</option>`
   ).join('');
 
-  sel2.innerHTML = '<option value="">Choose a game week…</option>' +
-    allWeeks.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
+  sel1.innerHTML = opts;
+  sel2.innerHTML = '<option value="">Choose a game week…</option>' + opts;
+  sel3.innerHTML = '<option value="">All weeks</option>' + opts;
+
+  // Populate player filter
+  const sel4 = document.getElementById('allBetsPlayerFilter');
+  sel4.innerHTML = '<option value="">All players</option>' +
+    players.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
 }
 
 async function adminSetWeek() {
   const weekId = parseInt(document.getElementById('adminWeekSelect').value);
   const msg    = document.getElementById('adminWeekMsg');
   try {
-    const res = await fetch(`/api/gameweeks/${weekId}/activate`, {
+    const res  = await fetch(`/api/gameweeks/${weekId}/activate`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: adminPassword }),
     });
     const data = await res.json();
     if (!res.ok) { showAdminMsg(msg, data.error, false); return; }
-
     activeWeek = data.activeWeek || allWeeks.find(w => w.id === weekId);
     allWeeks   = allWeeks.map(w => ({ ...w, isActive: w.id === weekId }));
     renderHeader();
@@ -433,12 +463,44 @@ async function adminSetWeek() {
   }
 }
 
-function showAdminMsg(el, text, success) {
-  el.textContent  = text;
-  el.className    = success ? 'success-msg' : 'error-msg';
-  el.classList.remove('hidden');
-  setTimeout(() => el.classList.add('hidden'), 3000);
+async function runSeed() {
+  const btn = document.getElementById('adminSeedBtn');
+  const msg = document.getElementById('adminSeedMsg');
+  btn.disabled = true;
+  btn.textContent = 'Seeding…';
+  try {
+    const res  = await fetch('/api/admin/seed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: adminPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showAdminMsg(msg, data.error, false); return; }
+    const txt = `Created: ${data.created.join(', ') || 'none'}.`
+      + (data.skipped.length ? ` Skipped (already exist): ${data.skipped.join(', ')}.` : '');
+    showAdminMsg(msg, txt, true);
+    // Refresh everything
+    players = await fetch('/api/players').then(r => r.json());
+    populateAdminWeekSelects();
+    await loadAllBets();
+    await renderLeaderboard();
+    await renderThisWeekBets();
+  } catch {
+    showAdminMsg(msg, 'Seed failed', false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Seed Week 1 Test Data';
+  }
 }
+
+function showAdminMsg(el, text, success) {
+  el.textContent = text;
+  el.className   = success ? 'success-msg' : 'error-msg';
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 5000);
+}
+
+// ── Quick result updater ────────────────────────────────────────────────────
 
 async function loadAdminBets(weekId) {
   const list = document.getElementById('adminBetsList');
@@ -446,7 +508,7 @@ async function loadAdminBets(weekId) {
   try {
     const bets = await fetch(`/api/gameweeks/${weekId}/bets`).then(r => r.json());
     if (!bets.length) {
-      list.innerHTML = '<div class="empty-state"><div>No bets submitted for this week</div></div>';
+      list.innerHTML = '<div class="empty-state"><div>No bets for this week</div></div>';
       return;
     }
     list.innerHTML = bets.map(b => adminBetRow(b, weekId)).join('');
@@ -456,21 +518,24 @@ async function loadAdminBets(weekId) {
 }
 
 function adminBetRow(bet, weekId) {
+  const img = (bet.imageUrl || bet.image_url)
+    ? `<a href="${esc(bet.imageUrl || bet.image_url)}" target="_blank" style="font-size:0.72rem;color:var(--blue)">View slip →</a>`
+    : '';
   return `<div class="admin-bet-row" id="admin-bet-${bet.id}">
     <div class="admin-bet-top">
-      <span class="admin-bet-player">${esc(bet.playerName)}</span>
+      <span class="admin-bet-player">${esc(bet.playerName || bet.player_name)}</span>
       ${resultBadge(bet.result)}
     </div>
     <div class="admin-bet-selection">
       ${bet.selection ? esc(bet.selection) : 'No selection extracted'}
-      ${bet.odds != null ? ` · ${bet.odds.toFixed(2)}x` : ''}
+      ${bet.odds != null ? ` · ${parseFloat(bet.odds).toFixed(2)}x` : ''}
     </div>
-    ${(bet.imageUrl || bet.image_url) ? `<a href="${esc(bet.imageUrl || bet.image_url)}" target="_blank" style="font-size:0.75rem;color:var(--blue)">View betslip →</a>` : ''}
+    ${img}
     <div class="admin-bet-controls">
-      <button class="btn-won"  onclick="markResult(${bet.id}, 'won',  ${weekId})">✓ Won</button>
-      <button class="btn-lost" onclick="markResult(${bet.id}, 'lost', ${weekId})">✗ Lost</button>
-      <button class="btn-void" onclick="markResult(${bet.id}, 'void', ${weekId})">— Void</button>
-      <button class="btn-del"  onclick="deleteBet(${bet.id}, ${weekId})">Delete</button>
+      <button class="btn-won"  onclick="markResult(${bet.id},'won',${weekId})">✓ Won</button>
+      <button class="btn-lost" onclick="markResult(${bet.id},'lost',${weekId})">✗ Lost</button>
+      <button class="btn-void" onclick="markResult(${bet.id},'void',${weekId})">— Void</button>
+      <button class="btn-del"  onclick="deleteBetQuick(${bet.id},${weekId})">Delete</button>
     </div>
   </div>`;
 }
@@ -484,13 +549,12 @@ async function markResult(betId, result, weekId) {
     });
     if (!res.ok) { alert((await res.json()).error); return; }
     await loadAdminBets(weekId);
-  } catch {
-    alert('Failed to update bet');
-  }
+    await loadAllBets();
+  } catch { alert('Failed to update'); }
 }
 
-async function deleteBet(betId, weekId) {
-  if (!confirm('Delete this bet? This cannot be undone.')) return;
+async function deleteBetQuick(betId, weekId) {
+  if (!confirm('Delete this bet? Cannot be undone.')) return;
   try {
     const res = await fetch(`/api/bets/${betId}`, {
       method: 'DELETE',
@@ -499,9 +563,196 @@ async function deleteBet(betId, weekId) {
     });
     if (!res.ok) { alert((await res.json()).error); return; }
     await loadAdminBets(weekId);
+    await loadAllBets();
+  } catch { alert('Failed to delete'); }
+}
+
+// ── All Bets Manager ────────────────────────────────────────────────────────
+
+let allBetsCache = [];
+
+async function loadAllBets() {
+  const wrap = document.getElementById('allBetsTable');
+  const stats = document.getElementById('allBetsStats');
+  wrap.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+  stats.innerHTML = '';
+
+  try {
+    allBetsCache = await fetch('/api/bets').then(r => r.json());
   } catch {
-    alert('Failed to delete');
+    wrap.innerHTML = '<div class="empty-state"><div>Failed to load bets</div></div>';
+    return;
   }
+
+  renderAllBetsTable();
+}
+
+function renderAllBetsTable() {
+  const weekId    = document.getElementById('allBetsWeekFilter')?.value;
+  const playerId  = document.getElementById('allBetsPlayerFilter')?.value;
+  const wrap      = document.getElementById('allBetsTable');
+  const statsEl   = document.getElementById('allBetsStats');
+
+  let bets = [...allBetsCache];
+  if (weekId)   bets = bets.filter(b => String(b.gameWeekId) === weekId);
+  if (playerId) bets = bets.filter(b => String(b.playerId)   === playerId);
+
+  // Stats bar
+  const won     = bets.filter(b => b.result === 'won').length;
+  const lost    = bets.filter(b => b.result === 'lost').length;
+  const pending = bets.filter(b => b.result === 'pending').length;
+  const totalProfit = bets.reduce((s, b) => s + (b.profit || 0), 0);
+  const avgOdds = bets.filter(b => b.odds).reduce((s, b, _, a) => s + b.odds / a.length, 0);
+
+  statsEl.innerHTML = `
+    <div class="stat-chip"><span class="stat-chip-label">Total</span><span class="stat-chip-value">${bets.length}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Won</span><span class="stat-chip-value pos">${won}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Lost</span><span class="stat-chip-value neg">${lost}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Pending</span><span class="stat-chip-value">${pending}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">P/L</span><span class="stat-chip-value ${totalProfit >= 0 ? 'pos' : 'neg'}">${totalProfit >= 0 ? '+' : ''}£${Math.abs(totalProfit).toFixed(2)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Avg Odds</span><span class="stat-chip-value">${avgOdds ? avgOdds.toFixed(2) + 'x' : '—'}</span></div>`;
+
+  if (!bets.length) {
+    wrap.innerHTML = '<div class="empty-state"><div>No bets match the filter</div></div>';
+    return;
+  }
+
+  const rows = bets.map(b => allBetRow(b)).join('');
+  wrap.innerHTML = `
+    <table class="all-bets-table">
+      <thead>
+        <tr>
+          <th>Slip</th>
+          <th>Week</th>
+          <th>Player</th>
+          <th>Event</th>
+          <th>Selection</th>
+          <th>Odds</th>
+          <th>Result</th>
+          <th>Profit</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function allBetRow(b) {
+  const profit    = b.profit || 0;
+  const pClass    = profit > 0 ? 'profit-pos' : profit < 0 ? 'profit-neg' : 'profit-nil';
+  const pText     = profit >= 0 ? `+£${profit.toFixed(2)}` : `−£${Math.abs(profit).toFixed(2)}`;
+  const imgSrc    = b.imageUrl || b.image_url;
+  const slipCell  = imgSrc
+    ? `<a href="${esc(imgSrc)}" target="_blank"><img class="slip-thumb" src="${esc(imgSrc)}" alt="slip"></a>`
+    : `<span style="color:var(--text-muted);font-size:1rem">🎫</span>`;
+
+  return `
+    <tr class="bet-main-row" id="row-${b.id}">
+      <td>${slipCell}</td>
+      <td class="col-week">${esc(b.gameWeekName || '—')}</td>
+      <td class="col-player">${esc(b.playerName || '—')}</td>
+      <td class="col-event">${esc(b.eventName || '—')}</td>
+      <td class="col-sel">${esc(b.selection || '—')}</td>
+      <td class="col-odds">${b.odds != null ? parseFloat(b.odds).toFixed(2) + 'x' : '—'}</td>
+      <td>${resultBadge(b.result)}</td>
+      <td class="col-profit ${pClass}">${pText}</td>
+      <td class="col-actions">
+        <button class="btn-edit" onclick="toggleEditRow(${b.id})">Edit</button>
+        <button class="btn-del"  onclick="deleteAllBet(${b.id})">Del</button>
+      </td>
+    </tr>
+    <tr class="bet-edit-row hidden" id="edit-row-${b.id}">
+      <td colspan="9">
+        <div class="bet-edit-form">
+          <div class="edit-field">
+            <label>Selection</label>
+            <input class="edit-input" id="ef-sel-${b.id}" value="${esc(b.selection || '')}" style="min-width:150px">
+          </div>
+          <div class="edit-field">
+            <label>Event</label>
+            <input class="edit-input" id="ef-evt-${b.id}" value="${esc(b.eventName || '')}" style="min-width:150px">
+          </div>
+          <div class="edit-field">
+            <label>Odds</label>
+            <input class="edit-input" id="ef-odds-${b.id}" type="number" step="0.01" min="1" value="${b.odds != null ? b.odds : ''}" style="min-width:70px">
+          </div>
+          <div class="edit-field">
+            <label>Result</label>
+            <select class="edit-input" id="ef-res-${b.id}" style="min-width:100px">
+              <option value="pending" ${b.result==='pending'?'selected':''}>⏳ Pending</option>
+              <option value="won"     ${b.result==='won'    ?'selected':''}>✅ Won</option>
+              <option value="lost"    ${b.result==='lost'   ?'selected':''}>❌ Lost</option>
+              <option value="void"    ${b.result==='void'   ?'selected':''}>— Void</option>
+            </select>
+          </div>
+          <div class="edit-actions">
+            <button class="btn-save"   onclick="saveAllBet(${b.id})">Save</button>
+            <button class="btn-cancel" onclick="toggleEditRow(${b.id})">Cancel</button>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function toggleEditRow(betId) {
+  const mainRow = document.getElementById(`row-${betId}`);
+  const editRow = document.getElementById(`edit-row-${betId}`);
+  const isOpen  = !editRow.classList.contains('hidden');
+  if (isOpen) {
+    editRow.classList.add('hidden');
+    mainRow.classList.remove('editing');
+  } else {
+    editRow.classList.remove('hidden');
+    mainRow.classList.add('editing');
+  }
+}
+
+async function saveAllBet(betId) {
+  const selection = document.getElementById(`ef-sel-${betId}`).value.trim();
+  const event_name = document.getElementById(`ef-evt-${betId}`).value.trim();
+  const odds      = parseFloat(document.getElementById(`ef-odds-${betId}`).value);
+  const result    = document.getElementById(`ef-res-${betId}`).value;
+
+  try {
+    const res = await fetch(`/api/bets/${betId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selection, event_name, odds: isNaN(odds) ? null : odds, result, password: adminPassword }),
+    });
+    if (!res.ok) { alert((await res.json()).error); return; }
+
+    // Update local cache and re-render
+    const updated = await res.json();
+    const idx = allBetsCache.findIndex(b => b.id === betId);
+    if (idx !== -1) {
+      allBetsCache[idx] = {
+        ...allBetsCache[idx],
+        selection: updated.selection,
+        eventName: updated.event_name,
+        odds: updated.odds,
+        result: updated.result,
+        profit: updated.profit,
+      };
+    }
+    renderAllBetsTable();
+    // Refresh leaderboard in background
+    renderLeaderboard(document.getElementById('weekFilter').value || null);
+  } catch { alert('Failed to save'); }
+}
+
+async function deleteAllBet(betId) {
+  if (!confirm('Delete this bet permanently?')) return;
+  try {
+    const res = await fetch(`/api/bets/${betId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: adminPassword }),
+    });
+    if (!res.ok) { alert((await res.json()).error); return; }
+    allBetsCache = allBetsCache.filter(b => b.id !== betId);
+    renderAllBetsTable();
+    renderLeaderboard(document.getElementById('weekFilter').value || null);
+  } catch { alert('Failed to delete'); }
 }
 
 /* ── Utils ───────────────────────────────────────────────────────────────── */

@@ -681,6 +681,185 @@ ul { list-style: none; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Admin hint text ──────────────────────────────────────────────────────── */
+.admin-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ── Admin manager header ─────────────────────────────────────────────────── */
+.admin-manager-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-manager-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.input-sm {
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  width: auto;
+}
+
+/* ── All bets stats bar ───────────────────────────────────────────────────── */
+.all-bets-stats {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 10px 0 6px;
+}
+
+.stat-chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 70px;
+}
+
+.stat-chip-label { color: var(--text-muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-chip-value { font-weight: 700; font-size: 0.92rem; }
+.stat-chip-value.pos { color: var(--green); }
+.stat-chip-value.neg { color: var(--red); }
+
+/* ── All bets table ───────────────────────────────────────────────────────── */
+.all-bets-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.all-bets-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 620px;
+}
+
+.all-bets-table thead tr {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.all-bets-table thead th {
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.all-bets-table tbody tr.bet-main-row {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.all-bets-table tbody tr.bet-main-row:hover { background: var(--bg-card2); }
+.all-bets-table tbody tr.bet-main-row.editing { background: var(--bg-card2); border-bottom: none; }
+
+.all-bets-table tbody td {
+  padding: 9px 10px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.all-bets-table .col-week     { color: var(--text-sub); font-size: 0.72rem; max-width: 110px; white-space: normal; }
+.all-bets-table .col-player   { font-weight: 700; }
+.all-bets-table .col-event    { color: var(--text-sub); max-width: 130px; white-space: normal; font-size: 0.75rem; }
+.all-bets-table .col-sel      { max-width: 130px; white-space: normal; }
+.all-bets-table .col-odds     { font-variant-numeric: tabular-nums; color: var(--amber); font-weight: 600; }
+.all-bets-table .col-profit   { font-variant-numeric: tabular-nums; font-weight: 700; }
+.all-bets-table .col-actions  { white-space: nowrap; }
+
+.btn-edit { background: var(--bg-card2); border: 1px solid var(--border-mid); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 0.72rem; font-weight: 600; color: var(--text-sub); cursor: pointer; margin-right: 4px; transition: color 0.15s, border-color 0.15s; }
+.btn-edit:hover { color: var(--text); border-color: var(--text-sub); }
+
+/* ── Inline edit row ──────────────────────────────────────────────────────── */
+.bet-edit-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--border);
+}
+
+.bet-edit-form {
+  background: var(--bg);
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.edit-field label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.edit-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font-size: 0.82rem;
+  color: var(--text);
+  outline: none;
+  min-width: 110px;
+  font: inherit;
+}
+
+.edit-input:focus { border-color: var(--green); }
+
+.edit-actions {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  padding-bottom: 1px;
+}
+
+.btn-save   { background: var(--green); color: #fff; border: none; border-radius: var(--radius-sm); padding: 7px 14px; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.btn-cancel { background: none; border: 1px solid var(--border-mid); border-radius: var(--radius-sm); padding: 7px 14px; font-size: 0.8rem; color: var(--text-sub); cursor: pointer; }
+.btn-save:hover   { background: var(--green-dark); }
+.btn-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+
+/* ── Image thumbnail in admin ─────────────────────────────────────────────── */
+.slip-thumb {
+  width: 32px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: opacity 0.15s;
+  vertical-align: middle;
+}
+
+.slip-thumb:hover { opacity: 0.8; }
+
 /* ── Desktop tweaks ────────────────────────────────────────────────────── */
 @media (min-width: 480px) {
   .bets-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }

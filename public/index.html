@@ -99,6 +99,14 @@
 
         <!-- Admin panel (hidden until unlocked) -->
         <div id="adminPanel" class="hidden">
+          <!-- Seed test data -->
+          <div class="admin-card">
+            <h3 class="admin-section-title">Test Data</h3>
+            <p class="admin-hint">Populate Game Week 1 with 10 real 2026 World Cup fixture bets.</p>
+            <button id="adminSeedBtn" class="btn btn-secondary mt-sm">Seed Week 1 Test Data</button>
+            <div id="adminSeedMsg" class="success-msg hidden"></div>
+          </div>
+
           <!-- Active week -->
           <div class="admin-card">
             <h3 class="admin-section-title">Active Game Week</h3>
@@ -107,15 +115,33 @@
             <div id="adminWeekMsg" class="success-msg hidden"></div>
           </div>
 
-          <!-- Bet results -->
+          <!-- Quick result updater -->
           <div class="admin-card">
-            <h3 class="admin-section-title">Update Bet Results</h3>
+            <h3 class="admin-section-title">Quick Result Updater</h3>
             <div class="form-group">
               <select id="adminWeekFilter" class="input">
                 <option value="">Choose a game week…</option>
               </select>
             </div>
             <div id="adminBetsList"></div>
+          </div>
+
+          <!-- All bets manager -->
+          <div class="admin-card">
+            <div class="admin-manager-header">
+              <h3 class="admin-section-title">All Bets Manager</h3>
+              <div class="admin-manager-filters">
+                <select id="allBetsWeekFilter" class="input input-sm">
+                  <option value="">All weeks</option>
+                </select>
+                <select id="allBetsPlayerFilter" class="input input-sm">
+                  <option value="">All players</option>
+                </select>
+              </div>
+            </div>
+            <div id="allBetsStats" class="all-bets-stats"></div>
+            <div id="allBetsTable" class="all-bets-wrap"></div>
+            <button id="refreshAllBetsBtn" class="btn btn-secondary mt-sm">Refresh</button>
           </div>
         </div>
       </section>

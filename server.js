@@ -241,6 +241,72 @@ app.delete('/api/bets/:id', async (req, res) => {
   res.json({ success: deleted });
 });
 
+// ── All bets (admin) ───────────────────────────────────────────────────────
+
+app.get('/api/bets', async (_, res) => {
+  res.json(await db.getAllBets());
+});
+
+// ── Seed test data (admin, password-protected) ────────────────────────────
+
+app.post('/api/admin/seed', async (req, res) => {
+  if (req.body?.password !== ADMIN_PASSWORD)
+    return res.status(401).json({ error: 'Wrong password' });
+
+  const { Pool } = require('pg');
+  const seedPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
+      ? { rejectUnauthorized: false } : false,
+  });
+
+  const SEED_BETS = [
+    { playerName: 'Luke',  selection: 'England to Win',      eventName: 'England vs Croatia',          odds: 9.00, result: 'pending' },
+    { playerName: 'Jamie', selection: 'Both Teams to Score', eventName: 'Brazil vs Morocco',            odds: 2.10, result: 'won'     },
+    { playerName: 'Sarah', selection: 'Germany to Win',      eventName: 'Germany vs Curacao',           odds: 1.25, result: 'won'     },
+    { playerName: 'Tom',   selection: 'Netherlands to Win',  eventName: 'Netherlands vs Japan',         odds: 1.62, result: 'lost'    },
+    { playerName: 'Mike',  selection: 'France to Win',       eventName: 'France vs Senegal',            odds: 1.67, result: 'won'     },
+    { playerName: 'Dave',  selection: 'Mexico to Win',       eventName: 'Mexico vs South Africa',       odds: 1.62, result: 'won'     },
+    { playerName: 'Emma',  selection: 'Argentina to Win',    eventName: 'Argentina vs Algeria',         odds: 1.40, result: 'won'     },
+    { playerName: 'Chris', selection: 'Over 2.5 Goals',      eventName: 'Spain vs Cape Verde',          odds: 1.90, result: 'won'     },
+    { playerName: 'Jess',  selection: 'USA to Win',          eventName: 'USA vs Paraguay',              odds: 2.10, result: 'lost'    },
+    { playerName: 'Ryan',  selection: 'Belgium to Win',      eventName: 'Belgium vs Egypt',             odds: 1.67, result: 'won'     },
+  ];
+
+  const client = await seedPool.connect();
+  const created = []; const skipped = [];
+  try {
+    const { rows: weeks } = await client.query('SELECT * FROM game_weeks WHERE week_number = 1');
+    if (!weeks.length) return res.status(500).json({ error: 'Game weeks not initialised yet' });
+    const gw1 = weeks[0];
+
+    for (const bet of SEED_BETS) {
+      let player;
+      const { rows: ep } = await client.query(
+        'SELECT * FROM players WHERE LOWER(name)=LOWER($1)', [bet.playerName]);
+      if (ep.length) { player = ep[0]; } else {
+        const { rows } = await client.query(
+          'INSERT INTO players (name) VALUES ($1) RETURNING *', [bet.playerName]);
+        player = rows[0];
+      }
+      const { rows: eb } = await client.query(
+        'SELECT id FROM bets WHERE player_id=$1 AND game_week_id=$2', [player.id, gw1.id]);
+      if (eb.length) { skipped.push(bet.playerName); continue; }
+
+      const profit = calcProfit(bet.result, bet.odds, 5);
+      await client.query(
+        `INSERT INTO bets (player_id,game_week_id,selection,event_name,odds,stake,result,profit)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [player.id, gw1.id, bet.selection, bet.eventName, bet.odds, 5.0, bet.result, profit]);
+      created.push(bet.playerName);
+    }
+    res.json({ success: true, created, skipped });
+  } finally {
+    client.release();
+    await seedPool.end();
+  }
+});
+
 // ── Start ──────────────────────────────────────────────────────────────────
 
 async function start() {
