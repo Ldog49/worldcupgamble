@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0d18">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>WC Bets 2026</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Header ──────────────────────────────────────────────────────── -->
+    <header id="appHeader">
+      <div class="header-logo">⚽ WC Bets 2026</div>
+      <div id="activeWeekPill" class="week-pill">Loading…</div>
+    </header>
+
+    <!-- ── Main content ────────────────────────────────────────────────── -->
+    <main id="mainContent">
+
+      <!-- HOME TAB -->
+      <section id="tab-home" class="tab-panel active">
+        <div class="section-row">
+          <h2 class="section-title">Leaderboard</h2>
+          <div class="filter-wrap">
+            <select id="weekFilter" class="week-select">
+              <option value="">All Time</option>
+            </select>
+          </div>
+        </div>
+        <div id="leaderboardWrap">
+          <div class="skeleton-table"></div>
+        </div>
+
+        <h2 class="section-title mt-lg" id="weekBetsHeading">This Week's Bets</h2>
+        <div id="weekBetsGrid" class="bets-grid"></div>
+      </section>
+
+      <!-- UPLOAD TAB -->
+      <section id="tab-upload" class="tab-panel">
+        <div class="upload-card">
+          <div class="current-week-banner">
+            <span class="banner-label">Submitting for</span>
+            <span id="uploadWeekName" class="banner-value">—</span>
+          </div>
+
+          <!-- Drop zone -->
+          <div id="dropZone" class="drop-zone">
+            <input type="file" id="betslipInput" accept="image/jpeg,image/jpg,image/png,image/webp" hidden>
+            <div id="dropZoneInner" class="dz-inner">
+              <div class="dz-icon">📸</div>
+              <div class="dz-text">Tap to upload betslip</div>
+              <div class="dz-sub">JPG · PNG · WebP &nbsp;|&nbsp; Max 15 MB</div>
+            </div>
+            <img id="imagePreview" class="img-preview hidden" alt="Betslip preview">
+          </div>
+
+          <!-- Name input -->
+          <div class="form-group">
+            <label for="playerNameInput">Your name</label>
+            <input type="text" id="playerNameInput" class="input" placeholder="e.g. John"
+                   list="playersList" autocomplete="off" autocorrect="off">
+            <datalist id="playersList"></datalist>
+          </div>
+
+          <button id="uploadBtn" class="btn btn-primary" disabled>Upload &amp; Analyse</button>
+
+          <div id="uploadStatus" class="upload-status hidden"></div>
+          <div id="analysisCard" class="analysis-card hidden"></div>
+        </div>
+      </section>
+
+      <!-- HISTORY TAB -->
+      <section id="tab-history" class="tab-panel">
+        <div id="weekPills" class="week-pills"></div>
+        <div id="historyContent">
+          <div class="empty-state">
+            <div class="empty-icon">📅</div>
+            <div>Select a game week above</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADMIN TAB -->
+      <section id="tab-admin" class="tab-panel">
+        <!-- Lock screen -->
+        <div id="adminLock" class="admin-lock">
+          <div class="lock-icon">🔒</div>
+          <h3>Admin Access</h3>
+          <div class="form-group">
+            <input type="password" id="adminPassword" class="input" placeholder="Admin password">
+          </div>
+          <button id="adminUnlockBtn" class="btn btn-primary">Unlock</button>
+          <div id="adminError" class="error-msg hidden">Incorrect password</div>
+        </div>
+
+        <!-- Admin panel (hidden until unlocked) -->
+        <div id="adminPanel" class="hidden">
+          <!-- Active week -->
+          <div class="admin-card">
+            <h3 class="admin-section-title">Active Game Week</h3>
+            <select id="adminWeekSelect" class="input"></select>
+            <button id="adminSetWeekBtn" class="btn btn-secondary mt-sm">Set Active Week</button>
+            <div id="adminWeekMsg" class="success-msg hidden"></div>
+          </div>
+
+          <!-- Bet results -->
+          <div class="admin-card">
+            <h3 class="admin-section-title">Update Bet Results</h3>
+            <div class="form-group">
+              <select id="adminWeekFilter" class="input">
+                <option value="">Choose a game week…</option>
+              </select>
+            </div>
+            <div id="adminBetsList"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ── Bottom tab bar ───────────────────────────────────────────────── -->
+    <nav id="tabBar">
+      <button class="tab-btn active" data-tab="home">
+        <span class="tab-icon">🏆</span>
+        <span class="tab-label">Home</span>
+      </button>
+      <button class="tab-btn" data-tab="upload">
+        <span class="tab-icon">📸</span>
+        <span class="tab-label">Upload</span>
+      </button>
+      <button class="tab-btn" data-tab="history">
+        <span class="tab-icon">📊</span>
+        <span class="tab-label">History</span>
+      </button>
+      <button class="tab-btn" data-tab="admin">
+        <span class="tab-icon">⚙️</span>
+        <span class="tab-label">Admin</span>
+      </button>
+    </nav>
+
+  </div><!-- #app -->
+  <script src="app.js"></script>
+</body>
+</html>
