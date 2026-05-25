@@ -253,11 +253,10 @@ app.post('/api/admin/seed', async (req, res) => {
   if (req.body?.password !== ADMIN_PASSWORD)
     return res.status(401).json({ error: 'Wrong password' });
 
-  const { Pool } = require('pg');
-  const seedPool = new Pool({
+  const seedPool = new (require('pg').Pool)({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
-      ? { rejectUnauthorized: false } : false,
+    ssl: (process.env.DATABASE_URL || '').includes('localhost') ? false : { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
   });
 
   const SEED_BETS = [
@@ -309,22 +308,33 @@ app.post('/api/admin/seed', async (req, res) => {
 
 // ── Start ──────────────────────────────────────────────────────────────────
 
-async function start() {
-  try {
-    await db.initDB();
-    console.log('  ✓ Database ready');
-  } catch (err) {
-    console.error('  ✗ Database init failed:', err.message);
-    process.exit(1);
-  }
+// Start the HTTP server immediately so Railway's port check passes,
+// then initialise the database with retries in the background.
+app.listen(PORT, () => {
+  console.log(`\n⚽  World Cup Bets 2026 → http://localhost:${PORT}`);
+  console.log(`   DATABASE_URL set: ${!!process.env.DATABASE_URL}`);
+  if (!process.env.ANTHROPIC_API_KEY)
+    console.warn('  ⚠  ANTHROPIC_API_KEY not set — betslip analysis disabled');
+  if (!process.env.CLOUDINARY_CLOUD_NAME)
+    console.warn('  ⚠  Cloudinary not configured — images will not be stored');
+  console.log('');
+});
 
-  app.listen(PORT, () => {
-    console.log(`\n⚽  World Cup Bets 2026 → http://localhost:${PORT}\n`);
-    if (!process.env.ANTHROPIC_API_KEY)
-      console.warn('  ⚠  ANTHROPIC_API_KEY not set — betslip analysis disabled');
-    if (!process.env.CLOUDINARY_CLOUD_NAME)
-      console.warn('  ⚠  Cloudinary not configured — images will not be stored');
-  });
+async function initWithRetry(attempts = 5, delayMs = 3000) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      await db.initDB();
+      console.log('  ✓ Database ready\n');
+      return;
+    } catch (err) {
+      console.error(`  ✗ DB attempt ${i}/${attempts}: ${err.message}`);
+      if (i === attempts) {
+        console.error('  ✗ Could not connect to database — API calls will fail until DB is reachable');
+        return;
+      }
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
 }
 
-start();
+initWithRetry();

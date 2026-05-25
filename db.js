@@ -1,10 +1,16 @@
 const { Pool } = require('pg');
 
+function sslConfig() {
+  const url = process.env.DATABASE_URL || '';
+  if (!url || url.includes('localhost') || url.includes('127.0.0.1')) return false;
+  return { rejectUnauthorized: false };
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
-    ? { rejectUnauthorized: false }
-    : false,
+  ssl: sslConfig(),
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
 });
 
 const DEFAULT_WEEKS = [
