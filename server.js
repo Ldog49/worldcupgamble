@@ -87,6 +87,13 @@ function calcProfit(result, odds, stake = 5) {
 app.use(express.json());
 app.use(express.static('public'));
 
+// Wraps async route handlers — any thrown error returns JSON instead of crashing
+const wrap = fn => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(err => {
+    console.error('[route error]', err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
+
 // ── Health / debug ─────────────────────────────────────────────────────────
 
 app.get('/api/health', async (_, res) => {
@@ -107,39 +114,39 @@ app.get('/api/health', async (_, res) => {
 
 // ── Players ────────────────────────────────────────────────────────────────
 
-app.get('/api/players', async (_, res) => {
+app.get('/api/players', wrap(async (_, res) => {
   res.json(await db.getPlayers());
-});
+}));
 
-app.post('/api/players', async (req, res) => {
+app.post('/api/players', wrap(async (req, res) => {
   const name = req.body?.name?.trim();
   if (!name) return res.status(400).json({ error: 'Name required' });
   let player = await db.getPlayerByName(name);
   if (!player) player = await db.addPlayer(name);
   res.json(player);
-});
+}));
 
 // ── Game Weeks ─────────────────────────────────────────────────────────────
 
-app.get('/api/gameweeks', async (_, res) => {
+app.get('/api/gameweeks', wrap(async (_, res) => {
   res.json(await db.getGameWeeks());
-});
+}));
 
-app.get('/api/gameweeks/active', async (_, res) => {
+app.get('/api/gameweeks/active', wrap(async (_, res) => {
   res.json(await db.getActiveGameWeek());
-});
+}));
 
-app.put('/api/gameweeks/:id/activate', async (req, res) => {
+app.put('/api/gameweeks/:id/activate', wrap(async (req, res) => {
   if (req.body?.password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Wrong password' });
   await db.setActiveGameWeek(parseInt(req.params.id));
   res.json({ success: true, activeWeek: await db.getGameWeek(parseInt(req.params.id)) });
-});
+}));
 
 // ── Leaderboard ────────────────────────────────────────────────────────────
 
-app.get('/api/leaderboard', async (req, res) => {
+app.get('/api/leaderboard', wrap(async (req, res) => {
   res.json(await db.getLeaderboard(req.query.weekId ? parseInt(req.query.weekId) : null));
-});
+}));
 
 // ── Upload & Analyse ───────────────────────────────────────────────────────
 
@@ -222,11 +229,11 @@ app.post('/api/upload', upload.single('betslip'), async (req, res) => {
 
 // ── Bets ───────────────────────────────────────────────────────────────────
 
-app.get('/api/gameweeks/:id/bets', async (req, res) => {
+app.get('/api/gameweeks/:id/bets', wrap(async (req, res) => {
   res.json(await db.getBetsForWeek(parseInt(req.params.id)));
-});
+}));
 
-app.put('/api/bets/:id', async (req, res) => {
+app.put('/api/bets/:id', wrap(async (req, res) => {
   if (req.body?.password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Wrong password' });
   const bet = await db.getBet(parseInt(req.params.id));
   if (!bet) return res.status(404).json({ error: 'Bet not found' });
@@ -243,27 +250,26 @@ app.put('/api/bets/:id', async (req, res) => {
     profit,
   });
   res.json(updated);
-});
+}));
 
-app.delete('/api/bets/:id', async (req, res) => {
+app.delete('/api/bets/:id', wrap(async (req, res) => {
   if (req.body?.password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Wrong password' });
   const bet = await db.getBet(parseInt(req.params.id));
   if (!bet) return res.status(404).json({ error: 'Bet not found' });
 
-  // Remove from Cloudinary if stored there
   if (bet.image_public_id && process.env.CLOUDINARY_CLOUD_NAME) {
     cloudinary.uploader.destroy(bet.image_public_id).catch(() => {});
   }
 
   const deleted = await db.deleteBet(parseInt(req.params.id));
   res.json({ success: deleted });
-});
+}));
 
 // ── All bets (admin) ───────────────────────────────────────────────────────
 
-app.get('/api/bets', async (_, res) => {
+app.get('/api/bets', wrap(async (_, res) => {
   res.json(await db.getAllBets());
-});
+}));
 
 // ── Seed test data (admin, password-protected) ────────────────────────────
 
